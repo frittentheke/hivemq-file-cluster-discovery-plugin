@@ -4,13 +4,11 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.hivemq.spi.callback.cluster.ClusterNodeAddress;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.logging.Level;
+import static java.util.regex.Pattern.matches;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -43,13 +41,16 @@ public class FileDiscoveryCallback implements com.hivemq.spi.callback.cluster.Cl
         List<ClusterNodeAddress> ClusterNodes = new ArrayList<>();
 
         LOGGER.debug("Resolving all IPs of for hostname " + ServiceName);
-        String clusterNodesFile = "conf/cluster-nodes";
+        String clusterNodesFile = "conf/discovery/cluster-nodes";
 
         //read file into stream, try-with-resources
         try (Stream<String> stream = Files.lines(Paths.get(clusterNodesFile))) {
 
-            stream.
-                    sorted().map(ip -> new ClusterNodeAddress(ip, FileDiscoveryCallback.ClusterPort)).
+            List<ClusterNodeAddress> collect = stream.
+                    map(line -> line.split(" ")[0]).
+                    filter(firstColumn -> matches("^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$", firstColumn)).
+                    sorted().
+                    map(ip -> new ClusterNodeAddress(ip.split(" ")[0], FileDiscoveryCallback.ClusterPort)).
                     collect(Collectors.toCollection(() -> ClusterNodes));
 
             String PreviousNodes = joinListOfNodes(LastClusterNodes);
